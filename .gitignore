@@ -1,0 +1,7 @@
+# simulation outputs / binaries
+simv*
+*.vcd
+*.do
+*.bat
+# editor / OS
+.DS_Store
