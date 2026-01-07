@@ -1,6 +1,6 @@
-﻿`timescale 1ns/1ps
+`timescale 1ns/1ps
 // Chien search for RS(16,8), GF(256), t=4
-// 鎵弿 132 涓鍙蜂綅缃紝鎵惧埌 位(伪^{-i})=0 鐨勯敊璇綅缃?
+// ?? 16 ???????? ?(?^{-i})=0 ?????
 module err_locate_16_8 #(
     parameter SYM_BW = 8,
     parameter N_NUM  = 16,
@@ -8,13 +8,13 @@ module err_locate_16_8 #(
 ) (
     input                     clk,
     input                     rst_n,
-    input                     start,       // 鑴夊啿锛孠ES done
-    input  [SYM_BW*5-1:0]     lamda,       // 位0..位6
-    output reg [SYM_BW*4-1:0] err_loc,     // 鏈€澶?6 涓敊璇綅缃紝鍏朵綑濉?0
+    input                     start,       // 脉冲，KES done
+    input  [SYM_BW*5-1:0]     lamda,       // ?0..?4
+    output reg [SYM_BW*4-1:0] err_loc,     // ?? 4 ????????? 0
     output reg                done
 );
     localparam integer T = 4;
-    // syndrome 搴忓垪瀵瑰簲鐨勬牴婊¤冻 位(伪^{idx+1})=0锛堟暟鎹祦椤哄簭鍐冲畾锛夛紝鏃犻渶棰濆鍋忕Щ
+    // syndrome 序列对应的根满足 λ(α^{idx+1})=0（数据流顺序决定），无需额外偏移
 
     // GF helpers (inlined tables/functions)
     reg [SYM_BW-1:0] EXP[0:255];
@@ -129,11 +129,11 @@ module err_locate_16_8 #(
     end
     endfunction
 
-    reg [SYM_BW-1:0] lam[0:T];            // 位 绯绘暟
-    reg [SYM_BW-1:0] err_loc_arr[0:T-1];  // 閿欒浣嶇疆绱Н锛堟棤鍛戒腑鏃跺～ 0xff锛?
+    reg [SYM_BW-1:0] lam[0:T];            // λ 系数
+    reg [SYM_BW-1:0] err_loc_arr[0:T-1];  // ?? 4 ????????? 0
 
-    reg [7:0] idx;        // 褰撳墠鎵弿鐨勭鍙蜂綅缃?0..131
-    reg [2:0] err_cnt;    // 宸叉壘鍒扮殑閿欒鏁?
+    reg [7:0] idx;        // 当前扫描的符号位置 0..131
+    reg [2:0] err_cnt;    // 已找到的错误数
     reg       running;
 
     // next-state
@@ -143,13 +143,13 @@ module err_locate_16_8 #(
     reg       done_n;
     reg [SYM_BW-1:0] err_loc_arr_n[0:T-1];
 
-    // 涓存椂
+    // 临时
     reg [SYM_BW-1:0] eval;
     reg [SYM_BW-1:0] x_inv;
     reg [SYM_BW-1:0] x_pow;
     integer i, j;
 
-    // latch 位 绯绘暟
+    // latch λ 系数
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             for (i = 0; i <= T; i = i + 1) lam[i] <= {SYM_BW{1'b0}};
@@ -159,7 +159,7 @@ module err_locate_16_8 #(
         end
     end
 
-    // 缁勫悎锛氱姸鎬佽浆绉?
+    // 组合：状态转移
     always @* begin
         for (i = 0; i < T; i = i + 1) err_loc_arr_n[i] = err_loc_arr[i];
         idx_n     = idx;
@@ -177,17 +177,17 @@ module err_locate_16_8 #(
             err_cnt_n = 3'd0;
             for (i = 0; i < T; i = i + 1) err_loc_arr_n[i] = {SYM_BW{1'b1}};
         end else if (running) begin
-            // 璁＄畻 位(伪^{-idx})
+            // 计算 λ(α^{-idx})
             eval  = lam[0];
-            x_inv = gf_pow(idx + 1); // 伪^{idx+1}
+            x_inv = gf_pow(idx + 1); // α^{idx+1}
             x_pow = x_inv;
             for (j = 1; j <= T; j = j + 1) begin
                 eval  = eval ^ gf_mul(lam[j], x_pow);
-                x_pow = gf_mul(x_pow, x_inv); // 閫愭涔橈紝寰楀埌 伪^{-idx*j}
+                x_pow = gf_mul(x_pow, x_inv); // 逐次乘，得到 α^{-idx*j}
             end
 
             if ((eval == 0) && (err_cnt < T)) begin
-                err_loc_arr_n[err_cnt] = idx[SYM_BW-1:0]; // 0-based 浣嶇疆
+                err_loc_arr_n[err_cnt] = idx[SYM_BW-1:0]; // ?? 4 ????????? 0
                 err_cnt_n              = err_cnt + 3'd1;
             end
 
@@ -200,7 +200,7 @@ module err_locate_16_8 #(
         end
     end
 
-    // 鏃跺簭瀵勫瓨
+    // 时序寄存
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             idx     <= 8'd0;
@@ -217,11 +217,10 @@ module err_locate_16_8 #(
         end
     end
 
-    // 鎵撳寘 err_loc
+    // ?? 4 ????????? 0
     always @* begin
         for (i = 0; i < T; i = i + 1)
             err_loc[i*SYM_BW +: SYM_BW] = err_loc_arr[i];
     end
 
 endmodule
-

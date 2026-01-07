@@ -1,4 +1,4 @@
-﻿`timescale 1ns/1ps
+`timescale 1ns/1ps
 //
 // RS(16,8) decoder top-level (GF(256), t=4)
 //
@@ -29,7 +29,7 @@ module rs_decoder_16_8 (
         .syndrome    (syndrome)
     );
 
-    // 瀵归綈 start 鑴夊啿锛岄伩鍏嶅悓涓€鎷嶉噰闆嗘湭绋冲畾鐨勬暟鎹?
+    // 对齐 start 脉冲，避免同一拍采集未稳定的数据
     reg syndrome_val_q, syndrome_val_d;
     reg kes_done_q, kes_done_d;
     reg chien_done_q, chien_done_d;
@@ -135,7 +135,7 @@ module rs_decoder_16_8 (
     dec_ctrl_16_8 u_ctrl (
         .clk        (clk),
         .rst_n      (rst_n),
-        .start      (forney_done_d), // err 鍊煎氨缁悗鍐嶅紑濮嬭 FIFO
+        .start      (forney_done_d), // err 值就绪后再开始读 FIFO
         .fifo_rd    (fifo_rd),
         .fifo_out   (fifo_dout),
         .symbol_cnt (symb_cnt_int),
@@ -162,10 +162,3 @@ module rs_decoder_16_8 (
     );
 
 endmodule
-
-
-
-
-
-
-

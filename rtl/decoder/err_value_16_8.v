@@ -1,6 +1,6 @@
-﻿`timescale 1ns/1ps
+`timescale 1ns/1ps
 // Forney algorithm for RS(16,8), GF(256), t=4
-// 杈撳叆 位銆佄?鍙婇敊璇綅缃紝璁＄畻閿欒鍊?
+// ?? ??? ???????????
 module err_value_16_8 #(
     parameter SYM_BW = 8,
     parameter N_NUM  = 16,
@@ -8,16 +8,16 @@ module err_value_16_8 #(
 ) (
     input                     clk,
     input                     rst_n,
-    input                     start,          // 鑴夊啿锛孋hien done
-    input  [SYM_BW*5-1:0]     lamda,          // 位0..位6
-    input  [SYM_BW*4-1:0]     omega,          // 惟0..惟5
-    input  [SYM_BW*4-1:0]     err_loc,        // 閿欒浣嶇疆鍒楄〃锛堟渶澶?6 涓級
-    output reg [SYM_BW*4-1:0] err_val,        // 閿欒鍊硷紙涓?err_loc 瀵归綈锛?
-    output reg [SYM_BW*4-1:0] err_loc_out,    // 鐩存帴杞彂 err_loc
+    input                     start,          // 脉冲，Chien done
+    input  [SYM_BW*5-1:0]     lamda,          // ?0..?4
+    input  [SYM_BW*4-1:0]     omega,          // ?0..?3
+    input  [SYM_BW*4-1:0]     err_loc,        // ????????? 4 ??
+    output reg [SYM_BW*4-1:0] err_val,        // ????????? 4 ??
+    output reg [SYM_BW*4-1:0] err_loc_out,    // ????????? 4 ??
     output reg                done
 );
     localparam integer T = 4;
-    // syndrome 搴忓垪瀵瑰簲鐨勬牴婊¤冻 伪^{idx+1}锛屾棤闇€棰濆鍋忕Щ
+    // syndrome 序列对应的根满足 α^{idx+1}，无需额外偏移
 
     // GF helpers (inlined tables/functions)
     reg [SYM_BW-1:0] EXP[0:255];
@@ -138,7 +138,7 @@ module err_value_16_8 #(
     reg [SYM_BW-1:0] err_val_arr[0:T-1];
     reg [SYM_BW-1:0] err_loc_arr[0:T-1];
 
-    reg [2:0] idx; // 褰撳墠澶勭悊绗嚑涓敊璇?0..5
+    reg [2:0] idx; // 当前处理第几个错误 0..5
     reg       running;
 
     // next-state
@@ -148,15 +148,15 @@ module err_value_16_8 #(
     reg [SYM_BW-1:0] err_val_arr_n[0:T-1];
     reg [SYM_BW-1:0] err_loc_arr_n[0:T-1];
 
-    // 涓存椂
-    reg [SYM_BW-1:0] x;         // X^{-1} = 伪^{err_loc+1}锛坋rr_loc 涓?0-based锛?
+    // 临时
+    reg [SYM_BW-1:0] x;         // ????????? 4 ??
     reg [SYM_BW-1:0] x_pow;
     reg [SYM_BW-1:0] omega_eval;
     reg [SYM_BW-1:0] lambda_der;
     reg [SYM_BW-1:0] err_calc;
     integer i;
 
-    // latch 杈撳叆
+    // latch 输入
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             for (i = 0; i <= T; i = i + 1) lam[i] <= {SYM_BW{1'b0}};
@@ -173,7 +173,7 @@ module err_value_16_8 #(
         end
     end
 
-    // 缁勫悎锛欶orney 杩唬
+    // 组合：Forney 迭代
     always @* begin
         for (i = 0; i < T; i = i + 1) begin
             err_val_arr_n[i] = err_val_arr[i];
@@ -198,14 +198,14 @@ module err_value_16_8 #(
             end
         end else if (running) begin
             if (loc_in[idx] == {SYM_BW{1'b1}}) begin
-                // 绌烘Ы锛氫繚鎸?0
+                // 空槽：保持 0
                 err_calc           = {SYM_BW{1'b0}};
                 err_val_arr_n[idx] = {SYM_BW{1'b0}};
                 err_loc_arr_n[idx] = loc_in[idx];
             end else begin
                 integer pos_int;
                 pos_int   = loc_in[idx];
-                x         = gf_pow(pos_int + 1);   // X^{-1} = 伪^{loc+1}
+                x         = gf_pow(pos_int + 1);   // X^{-1} = α^{loc+1}
                 omega_eval = omg[0];
                 x_pow      = x;
                 for (i = 1; i < T; i = i + 1) begin
@@ -213,11 +213,11 @@ module err_value_16_8 #(
                     x_pow      = gf_mul(x_pow, x);
                 end
 
-                // 位'(x) = 位1 + 位3*x^2 + 位5*x^4 锛堢壒寰?2锛氬伓娆￠」瀵兼暟涓?0锛?
+                // λ'(x) = λ1 + λ3*x^2 + λ5*x^4 （特征 2：偶次项导数为 0）
                 lambda_der = lam[1];
                 x_pow = gf_mul(x, x);                // x^2
                 lambda_der = lambda_der ^ gf_mul(lam[3], x_pow);
-                                if (lambda_der != 0)
+if (lambda_der != 0)
                     err_calc = gf_mul(omega_eval, gf_inv(lambda_der));
                 else
                     err_calc = {SYM_BW{1'b0}};
@@ -235,7 +235,7 @@ module err_value_16_8 #(
         end
     end
 
-    // 鏃跺簭瀵勫瓨
+    // 时序寄存
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             idx     <= 3'd0;
@@ -256,7 +256,7 @@ module err_value_16_8 #(
         end
     end
 
-    // 鎵撳寘杈撳嚭
+    // 打包输出
     always @* begin
         for (i = 0; i < T; i = i + 1) begin
             err_val[i*SYM_BW +: SYM_BW]     = err_val_arr[i];
@@ -265,5 +265,3 @@ module err_value_16_8 #(
     end
 
 endmodule
-
-

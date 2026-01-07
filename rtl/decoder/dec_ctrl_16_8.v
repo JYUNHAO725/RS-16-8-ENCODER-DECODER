@@ -1,8 +1,8 @@
-﻿`timescale 1ns/1ps
+`timescale 1ns/1ps
 module dec_ctrl_16_8 (
     input        clk,
     input        rst_n,
-    input        start,          // 鑴夊啿锛岄敊璇€煎氨缁悗寮€濮嬭 FIFO
+    input        start,          // 脉冲，错误值就绪后开始读 FIFO
     output reg   fifo_rd,
     input  [7:0] fifo_out,
     output reg [7:0] symbol_cnt,
@@ -12,11 +12,11 @@ module dec_ctrl_16_8 (
 
     localparam integer N_NUM = 16;
 
-    reg [7:0] cnt;       // 褰撳墠杈撳嚭鐨勭鍙疯鏁帮紙1..132锛?
-    reg       running;   // 璇诲嚭杩涜涓?
-    reg       start_latched; // 鎹曡幏 start 鑴夊啿
+    reg [7:0] cnt;       // 当前输出的符号计数（1..16）
+    reg       running;   // 读出进行中
+    reg       start_latched; // 捕获 start 脉冲
     integer dbg_cnt;
-    // 寤惰繜 1 鎷嶉噰鏍?FIFO 杈撳嚭锛岄伩鍏嶄笌鍚屾璇诲啓鍦ㄥ悓涓€鎷嶅嚭鐜版棫鏁版嵁
+    // 延迟 1 拍采样 FIFO 输出，避免与同步读写在同一拍出现旧数据
     reg       fifo_rd_d;
     reg [7:0] cnt_d;
 
@@ -33,28 +33,28 @@ module dec_ctrl_16_8 (
             fifo_rd_d <= 1'b0;
             cnt_d     <= 8'd0;
         end else begin
-            fifo_rd <= 1'b0; // 榛樿涓嶈
-            // latch start 鑴夊啿锛岀洿鍒拌瀹?132 涓鍙?
+            fifo_rd <= 1'b0; // 默认不读
+            // latch start 脉冲，直到读完 16 个符号
             if (start)
                 start_latched <= 1'b1;
             else if (running && cnt == N_NUM)
                 start_latched <= 1'b0;
 
             if (start) begin
-                running <= 1'b1;    // 鍚姩璇诲嚭
-                cnt     <= 8'd1;    // 浠庣鍙?1 寮€濮?
-                fifo_rd <= 1'b1;    // 绔嬪埢鍙戝嚭璇讳俊鍙?
+                running <= 1'b1;    // 启动读出
+                cnt     <= 8'd1;    // 从符号 1 开始
+                fifo_rd <= 1'b1;    // 立刻发出读信号
             end else if (running || start_latched) begin
                 running <= 1'b1;
-                fifo_rd <= 1'b1;    // 璇讳笅涓€涓鍙?
+                fifo_rd <= 1'b1;    // 读下一个符号
                 if (cnt == N_NUM) begin
-                    running <= 1'b0; // 璇绘弧 132 涓悗鍋滄
+                    running <= 1'b0; // 读满 16 个后停止
                     start_latched <= 1'b0;
                 end else begin
                     cnt <= cnt + 1'b1;
                 end
             end
-            // 璁板綍鏈媿鐨?rd锛屼笅涓€鎷嶈緭鍑哄搴旀暟鎹笌璁℃暟
+            // 记录本拍的 rd，下一拍输出对应数据与计数
             fifo_rd_d <= fifo_rd;
             cnt_d     <= cnt;
             if (fifo_rd_d) begin
@@ -75,4 +75,3 @@ module dec_ctrl_16_8 (
     end
 
 endmodule
-

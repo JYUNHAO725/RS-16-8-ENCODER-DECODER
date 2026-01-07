@@ -1,20 +1,20 @@
-﻿`timescale 1ns/1ps
+`timescale 1ns/1ps
 // Berlekamp-Massey for RS(16,8), GF(256), t=4
-// 杈撳叆 12 涓?syndrome锛屼覆琛?12 鎷嶆眰 位(x)锛堥樁鈮?锛夊拰 惟(x)锛堥樁鈮?锛?
+// S0..S7???? S0
 module kes_16_8 #(
     parameter SYM_BW = 8,
-    parameter N_NUM  = 132,
+    parameter N_NUM  = 16,
     parameter R_NUM  = 12
 ) (
     input                     clk,
     input                     rst_n,
-    input                     start,        // 鑴夊啿锛宻yndrome 灏辩华
-    input  [SYM_BW*8-1:0]    syndrome,     // S0..S11锛屼綆浣嶆槸 S0
-    output reg [SYM_BW*5-1:0] lamda,        // 位0..位6
-    output reg [SYM_BW*4-1:0] omega,        // 惟0..惟5
+    input                     start,        // S0..S7???? S0
+    input  [SYM_BW*8-1:0]    syndrome,     // S0..S7???? S0
+    output reg [SYM_BW*5-1:0] lamda,        // ?0..?4
+    output reg [SYM_BW*4-1:0] omega,        // ?0..?3
     output reg                done
 );
-    localparam integer T = 4; // 绾犻敊鑳藉姏
+    localparam integer T = 4; // 纠错能力
 
     // GF helpers (EXP/LOG table + gf_mul/gf_inv/gf_pow) inlined to avoid external include
     reg [7:0] EXP[0:255];
@@ -131,7 +131,7 @@ module kes_16_8 #(
     end
     endfunction
 
-    // Syndrome 瀵勫瓨
+    // Syndrome 寄存
     reg [SYM_BW-1:0] S[0:R_NUM-1];
     integer i;
     always @(posedge clk or negedge rst_n) begin
@@ -140,16 +140,23 @@ module kes_16_8 #(
         end else if (start) begin
             for (i = 0; i < R_NUM; i = i + 1)
                 S[i] <= syndrome[i*SYM_BW +: SYM_BW];
-            end
+            $display("KES load S raw   : %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+                     syndrome[0*SYM_BW +: SYM_BW], syndrome[1*SYM_BW +: SYM_BW],
+                     syndrome[2*SYM_BW +: SYM_BW], syndrome[3*SYM_BW +: SYM_BW],
+                     syndrome[4*SYM_BW +: SYM_BW], syndrome[5*SYM_BW +: SYM_BW],
+                     syndrome[6*SYM_BW +: SYM_BW], syndrome[7*SYM_BW +: SYM_BW],
+                     syndrome[8*SYM_BW +: SYM_BW], syndrome[9*SYM_BW +: SYM_BW],
+                     syndrome[10*SYM_BW +: SYM_BW], syndrome[11*SYM_BW +: SYM_BW]);
+        end
     end
 
-    // BM 鐘舵€佸彉閲?
+    // BM 状态变量
     reg [SYM_BW-1:0] Lambda[0:T];
     reg [SYM_BW-1:0] B[0:T];
     reg [3:0] L;
     reg [3:0] m;
     reg [SYM_BW-1:0] b;
-    reg [3:0] r;           // 褰撳墠澶勭悊鐨?syndrome 搴忓彿 0..11
+    reg [3:0] r;           // S0..S7???? S0
     reg       running;
 
     // next-state
@@ -164,15 +171,15 @@ module kes_16_8 #(
     reg [SYM_BW*5-1:0] lamda_n;
     reg [SYM_BW*4-1:0] omega_n;
 
-    // 涓存椂
+    // 临时
     reg [SYM_BW-1:0] d_calc;   // discrepancy
     reg [SYM_BW-1:0] scale;
     reg [SYM_BW-1:0] acc;
     integer j, k;
 
-    // 缁勫悎锛氫笅涓€鐘舵€佷笌杈撳嚭璁＄畻
+    // 组合：下一状态与输出计算
     always @* begin
-        // 榛樿淇濇寔
+        // 默认保持
         for (j = 0; j <= T; j = j + 1) begin
             Lambda_n[j] = Lambda[j];
             B_n[j]      = B[j];
@@ -189,7 +196,7 @@ module kes_16_8 #(
         scale     = {SYM_BW{1'b0}};
 
         if (start) begin
-            // 鍒濆鍖?BM 鍙橀噺
+            // 初始化 BM 变量
             for (j = 0; j <= T; j = j + 1) begin
                 Lambda_n[j] = (j == 0) ? {{(SYM_BW-1){1'b0}},1'b1} : {SYM_BW{1'b0}};
                 B_n[j]      = (j == 0) ? {{(SYM_BW-1){1'b0}},1'b1} : {SYM_BW{1'b0}};
@@ -202,7 +209,7 @@ module kes_16_8 #(
             lamda_n   = {SYM_BW*5{1'b0}};
             omega_n   = {SYM_BW*4{1'b0}};
         end else if (running) begin
-            // d = S[r] 鈯?危_{i=1..L} 位_i * S[r-i]
+            // d = S[r] ⊕ Σ_{i=1..L} λ_i * S[r-i]
             d_calc = S[r];
             for (j = 1; j <= T; j = j + 1) begin
                 if ((j <= L) && (r >= j))
@@ -211,7 +218,7 @@ module kes_16_8 #(
 
             if (d_calc != 0) begin
                 scale = gf_mul(d_calc, gf_inv(b));
-                // Lambda = Lambda 鈯?scale * x^m * B
+                // Lambda = Lambda ⊕ scale * x^m * B
                 for (j = 0; j <= T; j = j + 1) begin
                     if (j >= m && (j - m) <= T)
                         Lambda_n[j] = Lambda[j] ^ gf_mul(scale, B[j-m]);
@@ -231,10 +238,10 @@ module kes_16_8 #(
             if (r == R_NUM-1) begin
                 running_n = 1'b0;
                 done_n    = 1'b1;
-                // 杈撳嚭 位
+                // 输出 λ
                 for (j = 0; j <= T; j = j + 1)
                     lamda_n[j*SYM_BW +: SYM_BW] = Lambda_n[j];
-                // 杈撳嚭 惟_k = 危_{i=0..k} 螞_i * S_{k-i}
+                // 输出 Ω_k = Σ_{i=0..k} Λ_i * S_{k-i}
                 for (k = 0; k < T; k = k + 1) begin
                     acc = {SYM_BW{1'b0}};
                     for (j = 0; j <= k; j = j + 1)
@@ -247,7 +254,7 @@ module kes_16_8 #(
         end
     end
 
-    // 鏃跺簭瀵勫瓨
+    // 时序寄存
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             for (i = 0; i <= T; i = i + 1) begin
@@ -282,4 +289,3 @@ module kes_16_8 #(
     end
 
 endmodule
-

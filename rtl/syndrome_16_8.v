@@ -1,4 +1,4 @@
-﻿`timescale 1ns/1ps
+`timescale 1ns/1ps
 module syndrome_16_8 (
     input        clk,
     input        rst_n,
@@ -7,13 +7,13 @@ module syndrome_16_8 (
     input        din_eop,
     input  [7:0] din,
     output reg   syndrome_val,
-    output reg [8*8-1:0] syndrome // S0..S7 鎵撳寘杈撳嚭锛屼綆浣嶆槸 S0
+    output reg [8*8-1:0] syndrome // S0..S7 打包输出，低位是 S0
 );
 
     localparam integer R_NUM = 8;
-    // 伪^(1..8) 鍥哄畾琛紙GF(256), primitive 0x11d锛?
+    // α^(1..8) 固定表（GF(256), primitive 0x11d）
     reg [7:0] ALPHA [0:R_NUM-1];
-    // 缂╃煭鐮佸亸绉伙細n=16 鐩稿綋浜庡湪 RS(255,247) 鍓嶈ˉ 239 涓?0锛岃ˉ鍋垮洜瀛?伪^{(i+1)*239}
+    // 缩短码偏移：n=16 相当于在 RS(255,247) 前补 239 个 0，补偿因子 α^{(i+1)*239}
     reg [7:0] ALPHA_OFF [0:R_NUM-1];
     integer ai;    initial begin
         ALPHA[0]=8'h02; ALPHA[1]=8'h04; ALPHA[2]=8'h08; ALPHA[3]=8'h10;
@@ -21,18 +21,19 @@ module syndrome_16_8 (
 
         ALPHA_OFF[0]=8'h16; ALPHA_OFF[1]=8'h09; ALPHA_OFF[2]=8'hA6; ALPHA_OFF[3]=8'h41;
         ALPHA_OFF[4]=8'hFF; ALPHA_OFF[5]=8'h73; ALPHA_OFF[6]=8'h54; ALPHA_OFF[7]=8'hCC;
-    end// S0..S7 瀵勫瓨鍣?
+    end
+// S0..S7 寄存器
     reg [7:0] s [0:R_NUM-1];
-    // 鏈媿杈撳叆鍚庣殑 s 鍊硷紙缁勫悎棰勮绠楋紝渚夸簬鍦?din_eop 鏃剁洿鎺ヤ娇鐢級
+    // 本拍输入后的 s 值（组合预计算，便于在 din_eop 时直接使用）
     reg [7:0] s_next [0:R_NUM-1];
     integer i;
     integer dbg_update;
 
-    // 棰勮绠?s[i]*alpha(i+1)
+    // 预计算 s[i]*alpha(i+1)
     wire [7:0] mult [0:R_NUM-1];
-    // 杈撳嚭琛ュ伩锛歴[i]*alpha_off(i+1)
+    // 输出补偿：s[i]*alpha_off(i+1)
     wire [7:0] mult_off [0:R_NUM-1];
-    // 浠モ€滀笅涓€鎷嶅€尖€濊绠楃殑琛ュ伩锛岀敤浜庡抚灏鹃攣瀛?syndrome
+    // 以“下一拍值”计算的补偿，用于帧尾锁存 syndrome
     wire [7:0] mult_off_next [0:R_NUM-1];
     genvar gi;
     generate
@@ -55,7 +56,7 @@ module syndrome_16_8 (
         end
     endgenerate
 
-    // 缁勫悎锛氬綋鍓嶈緭鍏ュ悗鐨?s 鍊?
+    // 组合：当前输入后的 s 值
     integer si;
     always @* begin
         for (si = 0; si < R_NUM; si = si + 1) begin
@@ -70,10 +71,10 @@ module syndrome_16_8 (
         end
     end
 
-    // 鍦ㄨ緭鍏ユ祦鏈熼棿绱Н syndrome
+    // 在输入流期间累积 syndrome
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
-            // 澶嶄綅锛氭竻闆舵墍鏈夌患鍚?
+            // 复位：清零所有综合
             for (i = 0; i < R_NUM; i = i + 1) s[i] <= 8'h00;
             dbg_update <= 0;
         end else if (din_val) begin
@@ -81,33 +82,38 @@ module syndrome_16_8 (
                 s[i] <= s_next[i];
             if (dbg_update < 4) begin
                 dbg_update <= dbg_update + 1;
-                end
+                $display("SYND step%0d din=%02x s=%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+                         dbg_update, din, s_next[0], s_next[1], s_next[2], s_next[3], s_next[4], s_next[5], s_next[6], s_next[7], s_next[8], s_next[9], s_next[10], s_next[11]);
+            end
         end else if (din_sop) begin
-            // 鑻ユ棤 din_val 浣嗘敹鍒?sop锛屾竻闆讹紙闃插尽鎬у鐞嗭級
+            // 若无 din_val 但收到 sop，清零（防御性处理）
             for (i = 0; i < R_NUM; i = i + 1) s[i] <= 8'h00;
         end
     end
 
-    // 鎵撳寘杈撳嚭 syndrome锛氫綆浣嶆斁 S0锛屽湪甯у熬閿佸瓨渚夸簬鍚庣骇浣跨敤
+    // 打包输出 syndrome：低位放 S0，在帧尾锁存便于后级使用
     integer k;
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) begin
             for (k = 0; k < R_NUM; k = k + 1) syndrome[k*8 +: 8] <= 8'h00;
         end else if (din_eop) begin
-            // 鐢ㄢ€滃惈鏈€鍚庝竴涓鍙封€濈殑 s_next 璁＄畻缁煎悎
+            // 用“含最后一个符号”的 s_next 计算综合
             for (k = 0; k < R_NUM; k = k + 1) syndrome[k*8 +: 8] <= mult_off_next[k];
         end
     end
 
-    // 瀹屾垚鑴夊啿锛氬抚灏?din_eop
+    // 完成脉冲：帧尾 din_eop
     always @(posedge clk or negedge rst_n) begin
         if (!rst_n) syndrome_val <= 1'b0;
         else begin
             syndrome_val <= din_eop;
             if (din_eop) begin
-                end
+                $display("SYND debug s=%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x off=%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+                         s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8], s[9], s[10], s[11],
+                         mult_off[0], mult_off[1], mult_off[2], mult_off[3], mult_off[4], mult_off[5],
+                         mult_off[6], mult_off[7], mult_off[8], mult_off[9], mult_off[10], mult_off[11]);
+            end
         end
     end
 
 endmodule
-

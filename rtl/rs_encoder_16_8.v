@@ -1,9 +1,9 @@
-﻿`timescale 1ns/1ps
+`timescale 1ns/1ps
 //
-// RS(16,8) 缂栫爜鍣ㄩ《灞傦紙GF(256), r=8, t=4锛?
-// - 浠呭疄渚嬪寲 LFSR 鏍稿績锛屾帴鍙ｄ负娴佸紡鎻℃墜
-// - 杈撳叆锛歞in_val/din_sop/din
-// - 杈撳嚭锛歞out_val/dout_sop/dout_eop/dout
+// RS(16,8) 编码器顶层（GF(256), r=8, t=4）
+// - 仅实例化 LFSR 核心，接口为流式握手
+// - 输入：din_val/din_sop/din
+// - 输出：dout_val/dout_sop/dout_eop/dout
 //
 module rs_encoder_16_8 (
     input        clk,
@@ -30,5 +30,3 @@ module rs_encoder_16_8 (
     );
 
 endmodule
-
-

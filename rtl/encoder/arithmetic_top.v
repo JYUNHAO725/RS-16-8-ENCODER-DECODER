@@ -10,13 +10,13 @@
 // Target Devices:
 // Tool Versions:
 // Description:
-//   Arithmetic Top wrapper for RS(132,120) encoder.
+//   Arithmetic Top wrapper for RS(16,8) encoder.
 //   This module provides a simple top-level interface for synthesis/analysis
-//   flows by instantiating rs_encoder_132_120 with a clean, flat port list.
+//   flows by instantiating rs_encoder_16_8 with a clean, flat port list.
 //
 // Dependencies:
-//   rs_encoder_132_120.v
-//   rs_lfsr_132_120.v
+//   rs_encoder_16_8.v
+//   rs_lfsr_16_8.v
 //   gf256mul_dec.v
 //
 // Revision:
@@ -37,7 +37,7 @@ module arithmetic_top (
     output       dout_eop,
     output [7:0] dout
 );
-    rs_encoder_132_120 u_encoder (
+    rs_encoder_16_8 u_encoder (
         .clk      (clk),
         .rst_n    (rst_n),
         .din_val  (din_val),

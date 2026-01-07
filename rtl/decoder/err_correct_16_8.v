@@ -1,4 +1,4 @@
-﻿`timescale 1ns/100ps
+`timescale 1ns/100ps
 
 `ifndef SYM_BW_BW
 `define SYM_BW_BW 4
@@ -79,7 +79,7 @@ generate
     end
 endgenerate
 
-// symb_cnt 浠?1 寮€濮嬭鏁帮紝杞崲涓?0-based 浠ュ尮閰?err_loc
+// symb_cnt 从 1 开始计数，转换为 0-based 以匹配 err_loc
 wire [SYM_BW-1:0] symb_idx = symb_cnt - {{(SYM_BW-1){1'b0}},1'b1};
 
 
@@ -245,4 +245,3 @@ else
   symb_out_val   <= 0;
   
 endmodule       
-
