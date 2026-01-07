@@ -1,7 +1,7 @@
 `timescale 1ns/1ps
 module fifo_buffer #(
     parameter WIDTH = 8,
-    parameter DEPTH = 132
+    parameter DEPTH = 16
 )(
     input               clk,
     input               rst,   // active high
@@ -13,8 +13,8 @@ module fifo_buffer #(
     output              full
 );
 
-    // 对 132 深度，需要 8bit 地址
-    localparam PTR_W = 8;
+    // 对 16 深度，需要 4bit 地址
+    localparam PTR_W = 4;
 
     reg [WIDTH-1:0] mem [0:DEPTH-1];
     reg [PTR_W:0]   count;

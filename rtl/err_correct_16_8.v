@@ -10,8 +10,8 @@
 module err_correct_16_8
 #(
 parameter [`SYM_BW_BW -1 :0] SYM_BW = 8,
-parameter [8-1:0]  N_NUM = 255,
-parameter [`R_BW - 1 :0]  R_NUM = 16,
+parameter [8-1:0]  N_NUM = 16,
+parameter [`R_BW - 1 :0]  R_NUM = 8,
 parameter [`R_BW - 1 :0]  T_NUM = R_NUM/2
 )
 (

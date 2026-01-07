@@ -1,6 +1,6 @@
 `timescale 1ns/1ps
 // Chien search for RS(16,8), GF(256), t=4
-// 扫描 132 个符号位置，找到 λ(α^{-i})=0 的错误位置
+// 扫描 16 个符号位置，找到 λ(α^{-i})=0 的错误位置
 module err_locate_16_8 #(
     parameter SYM_BW = 8,
     parameter N_NUM  = 16,

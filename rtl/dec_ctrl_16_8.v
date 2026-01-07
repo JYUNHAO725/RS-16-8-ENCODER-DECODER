@@ -12,7 +12,7 @@ module dec_ctrl_16_8 (
 
     localparam integer N_NUM = 16;
 
-    reg [7:0] cnt;       // 当前输出的符号计数（1..132）
+    reg [7:0] cnt;       // 当前输出的符号计数（1..16）
     reg       running;   // 读出进行中
     reg       start_latched; // 捕获 start 脉冲
     integer dbg_cnt;
@@ -34,7 +34,7 @@ module dec_ctrl_16_8 (
             cnt_d     <= 8'd0;
         end else begin
             fifo_rd <= 1'b0; // 默认不读
-            // latch start 脉冲，直到读完 132 个符号
+            // latch start 脉冲，直到读完 16 个符号
             if (start)
                 start_latched <= 1'b1;
             else if (running && cnt == N_NUM)
@@ -48,7 +48,7 @@ module dec_ctrl_16_8 (
                 running <= 1'b1;
                 fifo_rd <= 1'b1;    // 读下一个符号
                 if (cnt == N_NUM) begin
-                    running <= 1'b0; // 读满 132 个后停止
+                    running <= 1'b0; // 读满 16 个后停止
                     start_latched <= 1'b0;
                 end else begin
                     cnt <= cnt + 1'b1;

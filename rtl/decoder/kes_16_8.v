@@ -1,17 +1,17 @@
 `timescale 1ns/1ps
 // Berlekamp-Massey for RS(16,8), GF(256), t=4
-// S0..S7???? S0
+// S0..S7, LSB is S0
 module kes_16_8 #(
     parameter SYM_BW = 8,
     parameter N_NUM  = 16,
-    parameter R_NUM  = 12
+    parameter R_NUM  = 8
 ) (
     input                     clk,
     input                     rst_n,
-    input                     start,        // S0..S7???? S0
-    input  [SYM_BW*8-1:0]    syndrome,     // S0..S7???? S0
-    output reg [SYM_BW*5-1:0] lamda,        // ?0..?4
-    output reg [SYM_BW*4-1:0] omega,        // ?0..?3
+    input                     start,        // pulse when syndrome ready
+    input  [SYM_BW*8-1:0]    syndrome,     // S0..S7, LSB is S0
+    output reg [SYM_BW*5-1:0] lamda,        // lambda0..lambda4
+    output reg [SYM_BW*4-1:0] omega,        // omega0..omega3
     output reg                done
 );
     localparam integer T = 4; // 纠错能力
@@ -140,13 +140,11 @@ module kes_16_8 #(
         end else if (start) begin
             for (i = 0; i < R_NUM; i = i + 1)
                 S[i] <= syndrome[i*SYM_BW +: SYM_BW];
-            $display("KES load S raw   : %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
+                        $display("KES load S raw   : %02x %02x %02x %02x %02x %02x %02x %02x",
                      syndrome[0*SYM_BW +: SYM_BW], syndrome[1*SYM_BW +: SYM_BW],
                      syndrome[2*SYM_BW +: SYM_BW], syndrome[3*SYM_BW +: SYM_BW],
                      syndrome[4*SYM_BW +: SYM_BW], syndrome[5*SYM_BW +: SYM_BW],
-                     syndrome[6*SYM_BW +: SYM_BW], syndrome[7*SYM_BW +: SYM_BW],
-                     syndrome[8*SYM_BW +: SYM_BW], syndrome[9*SYM_BW +: SYM_BW],
-                     syndrome[10*SYM_BW +: SYM_BW], syndrome[11*SYM_BW +: SYM_BW]);
+                     syndrome[6*SYM_BW +: SYM_BW], syndrome[7*SYM_BW +: SYM_BW]);
         end
     end
 
@@ -156,7 +154,7 @@ module kes_16_8 #(
     reg [3:0] L;
     reg [3:0] m;
     reg [SYM_BW-1:0] b;
-    reg [3:0] r;           // S0..S7???? S0
+    reg [3:0] r;           // S0..S7, LSB is S0
     reg       running;
 
     // next-state
