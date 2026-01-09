@@ -202,7 +202,7 @@ module err_value_16_8 #(
                 err_calc           = {SYM_BW{1'b0}};
                 err_val_arr_n[idx] = {SYM_BW{1'b0}};
                 err_loc_arr_n[idx] = loc_in[idx];
-            end else begin
+            end else begin : eval_err
                 integer pos_int;
                 pos_int   = loc_in[idx];
                 x         = gf_pow(pos_int + 1);   // X^{-1} = α^{loc+1}

@@ -18,6 +18,15 @@ module rs_decoder_16_8 (
     wire syndrome_val;
     wire [8*8-1:0] syndrome;
 
+    wire kes_done;
+    wire chien_done;
+    wire forney_done;
+    wire [8*5-1:0] lamda;
+    wire [8*4-1:0] omega;
+    wire [8*4-1:0] err_loc;
+    wire [8*4-1:0] err_val;
+    wire [8*4-1:0] err_loc_out;
+
     syndrome_16_8 u_synd (
         .clk         (clk),
         .rst_n       (rst_n),
@@ -57,9 +66,6 @@ module rs_decoder_16_8 (
     end
 
     // KES
-    wire kes_done;
-    wire [8*5-1:0] lamda;
-    wire [8*4-1:0] omega;
     kes_16_8 #(
         .SYM_BW(8),
         .N_NUM (16),
@@ -75,8 +81,6 @@ module rs_decoder_16_8 (
     );
 
     // Chien
-    wire chien_done;
-    wire [8*4-1:0] err_loc;
 
     err_locate_16_8 #(
         .SYM_BW(8),
@@ -92,9 +96,6 @@ module rs_decoder_16_8 (
     );
 
     // Forney
-    wire forney_done;
-    wire [8*4-1:0] err_val;
-    wire [8*4-1:0] err_loc_out;
 
     err_value_16_8 #(
         .SYM_BW(8),
