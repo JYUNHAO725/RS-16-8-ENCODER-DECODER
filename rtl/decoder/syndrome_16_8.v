@@ -12,16 +12,14 @@ module syndrome_16_8 (
 
     localparam integer R_NUM = 8;
     // α^(1..8) 固定表（GF(256), primitive 0x11d）
-    reg [7:0] ALPHA [0:R_NUM-1];
-    // 缩短码偏移：n=16 相当于在 RS(255,247) 前补 239 个 0，补偿因子 α^{(i+1)*239}
-    reg [7:0] ALPHA_OFF [0:R_NUM-1];
-    integer ai;    initial begin
-        ALPHA[0]=8'h02; ALPHA[1]=8'h04; ALPHA[2]=8'h08; ALPHA[3]=8'h10;
-        ALPHA[4]=8'h20; ALPHA[5]=8'h40; ALPHA[6]=8'h80; ALPHA[7]=8'h1d;
+    wire [7:0] ALPHA [0:R_NUM-1];
+    wire [7:0] ALPHA_OFF [0:R_NUM-1];
 
-        ALPHA_OFF[0]=8'h16; ALPHA_OFF[1]=8'h09; ALPHA_OFF[2]=8'hA6; ALPHA_OFF[3]=8'h41;
-        ALPHA_OFF[4]=8'hFF; ALPHA_OFF[5]=8'h73; ALPHA_OFF[6]=8'h54; ALPHA_OFF[7]=8'hCC;
-    end
+    assign ALPHA[0]=8'h02; assign ALPHA[1]=8'h04; assign ALPHA[2]=8'h08; assign ALPHA[3]=8'h10;
+    assign ALPHA[4]=8'h20; assign ALPHA[5]=8'h40; assign ALPHA[6]=8'h80; assign ALPHA[7]=8'h1d;
+
+    assign ALPHA_OFF[0]=8'h16; assign ALPHA_OFF[1]=8'h09; assign ALPHA_OFF[2]=8'hA6; assign ALPHA_OFF[3]=8'h41;
+    assign ALPHA_OFF[4]=8'hFF; assign ALPHA_OFF[5]=8'h73; assign ALPHA_OFF[6]=8'h54; assign ALPHA_OFF[7]=8'hCC;
 // S0..S7 寄存器
     reg [7:0] s [0:R_NUM-1];
     // 本拍输入后的 s 值（组合预计算，便于在 din_eop 时直接使用）
@@ -82,8 +80,9 @@ module syndrome_16_8 (
                 s[i] <= s_next[i];
             if (dbg_update < 4) begin
                 dbg_update <= dbg_update + 1;
-                $display("SYND step%0d din=%02x s=%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-                         dbg_update, din, s_next[0], s_next[1], s_next[2], s_next[3], s_next[4], s_next[5], s_next[6], s_next[7], s_next[8], s_next[9], s_next[10], s_next[11]);
+                                $display("SYND step%0d din=%02x s=%02x %02x %02x %02x %02x %02x %02x %02x",
+                         dbg_update, din, s_next[0], s_next[1], s_next[2], s_next[3],
+                         s_next[4], s_next[5], s_next[6], s_next[7]);
             end
         end else if (din_sop) begin
             // 若无 din_val 但收到 sop，清零（防御性处理）
@@ -108,10 +107,10 @@ module syndrome_16_8 (
         else begin
             syndrome_val <= din_eop;
             if (din_eop) begin
-                $display("SYND debug s=%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x off=%02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x %02x",
-                         s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7], s[8], s[9], s[10], s[11],
-                         mult_off[0], mult_off[1], mult_off[2], mult_off[3], mult_off[4], mult_off[5],
-                         mult_off[6], mult_off[7], mult_off[8], mult_off[9], mult_off[10], mult_off[11]);
+                                $display("SYND debug s=%02x %02x %02x %02x %02x %02x %02x %02x off=%02x %02x %02x %02x %02x %02x %02x %02x",
+                         s[0], s[1], s[2], s[3], s[4], s[5], s[6], s[7],
+                         mult_off[0], mult_off[1], mult_off[2], mult_off[3],
+                         mult_off[4], mult_off[5], mult_off[6], mult_off[7]);
             end
         end
     end
